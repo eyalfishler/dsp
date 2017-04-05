@@ -8,6 +8,7 @@ import (
 	"github.com/clixxa/dsp/services"
 	"log"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -423,22 +424,21 @@ func PrepareResponse(flight *DemandFlight) {
 	clickid := flight.Runtime.DefaultB64.Encrypt([]byte(fmt.Sprintf(`%d`, flight.RecallID)))
 
 	cr := flight.Runtime.Storage.Creatives.ByID(flight.CreativeID)
-	url := cr.RedirectUrl
-	url = strings.Replace(url, `{realnetwork}`, "", 1)
-	url = strings.Replace(url, `{realsubnetwork}`, "", 1)
-	url = strings.Replace(url, `{ct}`, ct, 1)
-	url = strings.Replace(url, `{clickid}`, fmt.Sprintf(`%s`, clickid), 1)
 
-	url = strings.Replace(url, `{network}`, fmt.Sprintf(`%s`, net), 1)
-	url = strings.Replace(url, `{subnetwork}`, fmt.Sprintf(`%s`, snet), 1)
-	url = strings.Replace(url, `{brand}`, fmt.Sprintf(`%s`, brand), 1)
-	url = strings.Replace(url, `{brandurl}`, fmt.Sprintf(`%s`, brandSlug), 1)
-	url = strings.Replace(url, `{vertical}`, fmt.Sprintf(`%s`, vert), 1)
+	bid.URL = cr.RedirectUrl
+	bid.URL = strings.Replace(bid.URL, `{realnetwork}`, "", 1)
+	bid.URL = strings.Replace(bid.URL, `{realsubnetwork}`, "", 1)
+	bid.URL = strings.Replace(bid.URL, `{ct}`, ct, 1)
+	bid.URL = strings.Replace(bid.URL, `{clickid}`, fmt.Sprintf(`%s`, clickid), 1)
 
-	url = strings.Replace(url, `{cpc}`, fmt.Sprintf(`%f`, fp/100000), 1)
-	url = strings.Replace(url, `{placement}`, flight.Raw.Site.Placement, 1)
+	bid.URL = strings.Replace(bid.URL, `{network}`, fmt.Sprintf(`%s`, url.QueryEscape(net)), 1)
+	bid.URL = strings.Replace(bid.URL, `{subnetwork}`, fmt.Sprintf(`%s`, url.QueryEscape(snet)), 1)
+	bid.URL = strings.Replace(bid.URL, `{brand}`, fmt.Sprintf(`%s`, url.QueryEscape(brand)), 1)
+	bid.URL = strings.Replace(bid.URL, `{brandurl}`, fmt.Sprintf(`%s`, url.QueryEscape(brandSlug)), 1)
+	bid.URL = strings.Replace(bid.URL, `{vertical}`, fmt.Sprintf(`%s`, url.QueryEscape(vert)), 1)
 
-	bid.URL = url
+	bid.URL = strings.Replace(bid.URL, `{cpc}`, fmt.Sprintf(`%f`, fp/100000), 1)
+	bid.URL = strings.Replace(bid.URL, `{placement}`, url.QueryEscape(flight.Raw.Site.Placement), 1)
 
 	if flight.Error != nil {
 		flight.Runtime.Logger.Println(`error occured in FindClient: %s`, flight.Error.Error())
