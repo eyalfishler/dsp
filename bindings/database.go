@@ -628,6 +628,8 @@ func (s Purchases) Save(fs [][17]interface{}, quit func(error) bool) {
 				s.Env.Logger.Println("failed, waiting 1 min to try again")
 				time.Sleep(time.Minute)
 			}
+		} else {
+			break
 		}
 	}
 }
