@@ -186,7 +186,7 @@ func (c *Users) Add(ch *User) int {
 func (f *Users) Unmarshal(depth int, env services.BindingDeps) error {
 	var rows *sql.Rows
 	var err error
-	rows, err = env.ConfigDB.Query(`SELECT users.id, traffic_status FROM users LEFT JOIN customers ON user_id = users.id`)
+	rows, err = env.ConfigDB.Query(`SELECT users.id, COALESCE(traffic_status, 0) FROM users LEFT JOIN customers ON user_id = users.id`)
 	if err != nil {
 		env.Debug.Println("err", err)
 		return err
