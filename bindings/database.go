@@ -40,6 +40,11 @@ const sqlSubchannels = `SELECT id, label, channel_id FROM subchannels`
 const sqlSubnetworkToNetwork = `SELECT id, network_id FROM subnetworks`
 const sqlNetworkToNetworkType = `SELECT network_id, network_type_id FROM network_network_type`
 
+type Subchannel struct {
+	ChannelID int
+	Label     string
+}
+
 type Pseudonyms struct {
 	Countries  map[string]int
 	CountryIDS map[int]string
@@ -68,8 +73,7 @@ type Pseudonyms struct {
 	Genders       map[string]int
 	GenderIDs     map[int]string
 
-	Subchannels   map[string]int
-	SubchannelIDs map[int]string
+	Subchannels map[Subchannel]int
 }
 
 func (c *Pseudonyms) Unmarshal(depth int, env services.BindingDeps) error {
@@ -81,7 +85,8 @@ func (c *Pseudonyms) Unmarshal(depth int, env services.BindingDeps) error {
 	c.Namespace(env, sqlBrandSlugs, &c.BrandSlugs, &c.BrandSlugIDS)
 	c.Namespace(env, sqlVerticals, &c.Verticals, &c.VerticalIDS)
 	c.Namespace(env, sqlNetworkTypes, &c.NetworkTypes, &c.NetworkTypeIDS)
-	c.Namespace(env, sqlSubchannels, &c.Subchannels, &c.SubchannelIDs)
+
+	c.SubchannelLoad(env, sqlSubchannels, &c.Subchannels)
 
 	c.Map(env, sqlNetworkToNetworkType, &c.NetworkToNetworkType)
 	c.Map(env, sqlSubnetworkToNetwork, &c.SubnetworkToNetwork)
@@ -131,6 +136,26 @@ func (c *Pseudonyms) Namespace(env services.BindingDeps, sql string, dest *map[s
 		}
 		(*dest)[realName] = id
 		(*dest2)[id] = realName
+	}
+	return nil
+}
+
+func (c *Pseudonyms) SubchannelLoad(env services.BindingDeps, sql string, dest *map[Subchannel]int) error {
+	rows, err := env.ConfigDB.Query(sql)
+	if err != nil {
+		env.Debug.Println("err", err)
+		return err
+	}
+	*dest = make(map[Subchannel]int)
+	for rows.Next() {
+		var label string
+		var id int
+		var channelId int
+		if err := rows.Scan(&id, &label, &channelId); err != nil {
+			env.Debug.Println("err", err)
+			return err
+		}
+		(*dest)[Subchannel{ChannelID: channelId, Label: label}] = id
 	}
 	return nil
 }
