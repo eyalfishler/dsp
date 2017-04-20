@@ -244,6 +244,10 @@ func FindClient(flight *DemandFlight) {
 		if !folder.Active {
 			return "Inactive"
 		}
+		u := flight.Runtime.Storage.Users.ByID(folder.OwnerID)
+		if u.Status != 0 {
+			return "UserStatus=" + strconv.Itoa(u.Status)
+		}
 		if flight.Raw.Test {
 			goto CheckBrand
 		}
@@ -337,7 +341,16 @@ func FindClient(flight *DemandFlight) {
 
 		flight.Runtime.Logger.Printf("folder %d matches..", folder.ID)
 
-		if len(folder.Creative) > 0 {
+		found := false
+		for _, c := range folder.Creative {
+			cr := flight.Runtime.Storage.Creatives.ByID(c)
+			if cr.Active {
+				found = true
+				break
+			}
+		}
+
+		if found {
 			cpc := folder.CPC
 			if folder.ParentID != nil && cpc == 0 {
 				cpc = flight.Runtime.Storage.Folders.ByID(*folder.ParentID).CPC
