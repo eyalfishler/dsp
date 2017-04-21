@@ -412,7 +412,7 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 	if budget.Valid {
 		f.Budget = int(budget.Int64)
 		var tot int
-		if err := env.StatsDB.QueryRow(`SELECT SUM(total) FROM all_hourly WHERE folder_id = ?`, f.ID).Scan(&tot); err != nil {
+		if err := env.StatsDB.QueryRow(`SELECT SUM(rev_tx_home) FROM all_hourly WHERE folder_id = ?`, f.ID).Scan(&tot); err != nil {
 			return err
 		}
 		if tot > f.Budget {
