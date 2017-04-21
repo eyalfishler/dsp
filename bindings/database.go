@@ -429,7 +429,7 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 	}
 
 	{
-		rows, err := env.ConfigDB.Query(`SELECT child_folder_id FROM parent_folder WHERE parent_folder_id = ?`, f.ID)
+		rows, err := env.ConfigDB.Query(`SELECT child_folder_id FROM parent_folder WHERE parent_folder_id = ? AND created_at > NOW() - INTERVAL '1 DAY'`, f.ID)
 		if err != nil {
 			return err
 		}
