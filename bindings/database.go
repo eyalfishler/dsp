@@ -409,7 +409,7 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 		f.Active = false
 	}
 
-	if budget.Valid {
+	if budget.Valid && creative_id.Valid {
 		f.Budget = int(budget.Int64)
 		var tot sql.NullInt64
 		if err := env.StatsDB.QueryRow(`SELECT SUM(rev_tx_home) FROM all_hourly WHERE folder_id = $1 AND created_at > NOW() - INTERVAL '1 DAY'`, f.ID).Scan(&tot); err != nil {

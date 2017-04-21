@@ -20,7 +20,7 @@ func (c *CycleService) Launch(errs chan error) error {
 		return ErrLaunching{err}
 	}
 	go func() {
-		for range time.NewTicker(time.Minute * 10).C {
+		for range time.NewTicker(time.Minute * 30).C {
 			if err := c.cycleAll(c.ErrorFilter); c.ErrorFilter(err) {
 				errs <- err
 			}
