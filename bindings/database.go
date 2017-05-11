@@ -10,6 +10,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func tojson(i interface{}) string {
@@ -619,8 +620,15 @@ func (s Purchases) Save(fs [][17]interface{}, quit func(error) bool) {
 	query := sqlInsertPurchases + strings.Join(q, ",")
 	s.Env.Logger.Println("query:", query)
 
-	if _, err := s.Env.StatsDB.Exec(query, args...); quit(services.ErrDatabaseMissing{"purchases", err}) {
-		return
+	for attempt := 15; attempt > 0; attempt-- {
+		if _, err := s.Env.StatsDB.Exec(query, args...); quit(services.ErrDatabaseMissing{"purchases", err}) {
+			if attempt == 0 {
+				return
+			} else {
+				s.Env.Logger.Println("failed, waiting 1 min to try again")
+				time.Sleep(time.Minute)
+			}
+		}
 	}
 }
 
