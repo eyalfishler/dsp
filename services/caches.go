@@ -7,12 +7,19 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 type CacheSystem interface {
 	Store(string, string) error
 	Load(string) (string, error)
 	String() string
+}
+
+func init() {
+	t := time.Now().UnixNano()
+	fmt.Println("seeding with", t)
+	rand.Seed(t)
 }
 
 type RandomCache struct {
