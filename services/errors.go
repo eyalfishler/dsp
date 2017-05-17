@@ -9,6 +9,7 @@ func (e *ErrorFilter) Quit(err error) (n bool) {
 	if err == nil {
 		return false
 	}
+	Important(err.Error())
 	if edm, ok := err.(ErrDatabaseMissing); ok {
 		if edm.UnderlyingErr == nil {
 			return false

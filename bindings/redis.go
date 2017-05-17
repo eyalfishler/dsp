@@ -20,6 +20,7 @@ func (r *RecallRedis) Store(keyStr string, val string) error {
 	atomic.AddUint64(&r.calls, 1)
 	res := r.SetNX(keyStr, val, 10*time.Minute)
 	if err := res.Err(); err != nil {
+		services.Important(err.Error())
 		return err
 	}
 	if res.Val() {
@@ -32,6 +33,7 @@ func (r *RecallRedis) Load(keyStr string) (string, error) {
 	atomic.AddUint64(&r.calls, 1)
 	cmd := r.Get(keyStr)
 	if err := cmd.Err(); err != nil {
+		services.Important(err.Error())
 		return "", err
 	}
 	return cmd.Result()
@@ -46,6 +48,7 @@ func NewRedis(conn string) (*RecallRedis, error) {
 	red := &redis.Options{Addr: conn}
 	r := &RecallRedis{Client: redis.NewClient(red)}
 	if err := r.Ping().Err(); err != nil {
+		services.Important(err.Error())
 		return nil, err
 	}
 	return r, nil
