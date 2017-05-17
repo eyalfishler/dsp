@@ -9,12 +9,12 @@ func (e *ErrorFilter) Quit(err error) (n bool) {
 	if err == nil {
 		return false
 	}
-	Important(err.Error())
 	if edm, ok := err.(ErrDatabaseMissing); ok {
 		if edm.UnderlyingErr == nil {
 			return false
 		}
 		e.Messages <- edm.Error()
+		Important(edm.Error())
 		return e.Tolerances&ConnectionErrors == 0
 	}
 	if ep, ok := err.(ErrParsing); ok {
@@ -22,9 +22,11 @@ func (e *ErrorFilter) Quit(err error) (n bool) {
 			return false
 		}
 		e.Messages <- ep.Error()
+		Important(ep.Error())
 		return e.Tolerances&ParsingErrors == 0
 	}
 	e.Messages <- err.Error()
+	Important(err.Error())
 	return e.Tolerances&UnknownErrors == 0
 }
 
