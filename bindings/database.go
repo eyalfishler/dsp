@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/clixxa/dsp/services"
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"log"
 	"strconv"
 	"strings"
@@ -26,8 +26,8 @@ const sqlUserIPs = `SELECT ip FROM ip_histories WHERE user_id = ?`
 const sqlUser = `SELECT setting_id, value FROM user_settings WHERE user_id = ?`
 const sqlDimention = `SELECT dimentions_id, dimentions_type FROM dimentions WHERE folder_id = ?`
 const sqlDimension = `SELECT dimensions_id, dimensions_type FROM dimensions WHERE folder_id = ?`
-const sqlFolder = `SELECT budget, bid, creative_id, user_id, folders.status FROM folders LEFT JOIN creative_folder ON folder_id = id WHERE id = ?`
-const sqlCreative = `SELECT destination_url FROM creatives cr WHERE cr.id = ?`
+const sqlFolder = `SELECT budget, bid, creative_id, user_id, folders.status, folders.deleted_at, creative_folder.deleted_at FROM folders LEFT JOIN creative_folder ON folder_id = id WHERE id = ?`
+const sqlCreative = `SELECT destination_url, deleted_at FROM creatives cr WHERE cr.id = ?`
 const sqlCountries = `SELECT id, iso_2alpha FROM countries`
 const sqlNetworks = `SELECT id, pseudonym FROM networks`
 const sqlSubNetworks = `SELECT id, pseudonym FROM subnetworks`
@@ -36,8 +36,14 @@ const sqlBrands = `SELECT id, label FROM brands`
 const sqlBrandSlugs = `SELECT id, slug FROM brands`
 const sqlVerticals = `SELECT id, label FROM verticals`
 const sqlNetworkTypes = `SELECT id, label FROM network_types`
+const sqlSubchannels = `SELECT id, label, channel_id FROM subchannels`
 const sqlSubnetworkToNetwork = `SELECT id, network_id FROM subnetworks`
 const sqlNetworkToNetworkType = `SELECT network_id, network_type_id FROM network_network_type`
+
+type Subchannel struct {
+	ChannelID int
+	Label     string
+}
 
 type Pseudonyms struct {
 	Countries  map[string]int
@@ -66,6 +72,8 @@ type Pseudonyms struct {
 	DeviceTypeIDs map[int]string
 	Genders       map[string]int
 	GenderIDs     map[int]string
+
+	Subchannels map[Subchannel]int
 }
 
 func (c *Pseudonyms) Unmarshal(depth int, env services.BindingDeps) error {
@@ -77,6 +85,8 @@ func (c *Pseudonyms) Unmarshal(depth int, env services.BindingDeps) error {
 	c.Namespace(env, sqlBrandSlugs, &c.BrandSlugs, &c.BrandSlugIDS)
 	c.Namespace(env, sqlVerticals, &c.Verticals, &c.VerticalIDS)
 	c.Namespace(env, sqlNetworkTypes, &c.NetworkTypes, &c.NetworkTypeIDS)
+
+	c.SubchannelLoad(env, sqlSubchannels, &c.Subchannels)
 
 	c.Map(env, sqlNetworkToNetworkType, &c.NetworkToNetworkType)
 	c.Map(env, sqlSubnetworkToNetwork, &c.SubnetworkToNetwork)
@@ -130,6 +140,26 @@ func (c *Pseudonyms) Namespace(env services.BindingDeps, sql string, dest *map[s
 	return nil
 }
 
+func (c *Pseudonyms) SubchannelLoad(env services.BindingDeps, sql string, dest *map[Subchannel]int) error {
+	rows, err := env.ConfigDB.Query(sql)
+	if err != nil {
+		env.Debug.Println("err", err)
+		return err
+	}
+	*dest = make(map[Subchannel]int)
+	for rows.Next() {
+		var label string
+		var id int
+		var channelId int
+		if err := rows.Scan(&id, &label, &channelId); err != nil {
+			env.Debug.Println("err", err)
+			return err
+		}
+		(*dest)[Subchannel{ChannelID: channelId, Label: label}] = id
+	}
+	return nil
+}
+
 type Users []*User
 
 func (f *Users) ByID(id int) *User {
@@ -156,19 +186,19 @@ func (c *Users) Add(ch *User) int {
 func (f *Users) Unmarshal(depth int, env services.BindingDeps) error {
 	var rows *sql.Rows
 	var err error
-	rows, err = env.ConfigDB.Query(`SELECT id FROM users`)
+	rows, err = env.ConfigDB.Query(`SELECT users.id, COALESCE(traffic_status, 0) FROM users LEFT JOIN customers ON user_id = users.id`)
 	if err != nil {
 		env.Debug.Println("err", err)
 		return err
 	}
-	var id int
+	var id, status int
 	*f = (*f)[:0]
 	for rows.Next() {
-		if err := rows.Scan(&id); err != nil {
+		if err := rows.Scan(&id, &status); err != nil {
 			env.Debug.Println("err", err)
 			return err
 		}
-		*f = append(*f, &User{ID: id})
+		*f = append(*f, &User{ID: id, Status: status})
 	}
 	for _, f := range *f {
 		if err := f.Unmarshal(depth+1, env); err != nil {
@@ -181,11 +211,12 @@ func (f *Users) Unmarshal(depth int, env services.BindingDeps) error {
 }
 
 type User struct {
-	ID  int
-	IPs []string
-	Age int
-	Key string
-	B64 *B64
+	ID     int
+	IPs    []string
+	Age    int
+	Key    string
+	B64    *B64
+	Status int
 }
 
 func (u *User) Unmarshal(depth int, env services.BindingDeps) error {
@@ -355,7 +386,8 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 
 	var budget, bid sql.NullInt64
 	var live sql.NullString
-	if err := row.Scan(&budget, &bid, &creative_id, &f.OwnerID, &live); err != nil {
+	var folder_deleted_at, creative_deleted_at pq.NullTime
+	if err := row.Scan(&budget, &bid, &creative_id, &f.OwnerID, &live, &folder_deleted_at, &creative_deleted_at); err != nil {
 		if f.mode == 0 {
 			f.mode = 1
 			env.Debug.Println("users didn't work, trying user")
@@ -370,9 +402,24 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 			f.Active = true
 		}
 	}
+	if folder_deleted_at.Valid {
+		f.Active = false
+	}
+	if creative_deleted_at.Valid {
+		f.Active = false
+	}
 
-	if budget.Valid {
+	if budget.Valid && creative_id.Valid {
 		f.Budget = int(budget.Int64)
+		var tot sql.NullInt64
+		if err := env.StatsDB.QueryRow(`SELECT SUM(rev_tx_home) FROM all_hourly WHERE folder_id = $1 AND created_at > NOW() - INTERVAL '1 DAY'`, f.ID).Scan(&tot); err != nil {
+			return err
+		}
+		if tot.Valid {
+			if int(tot.Int64) > f.Budget {
+				f.Active = false
+			}
+		}
 	}
 
 	if bid.Valid {
@@ -539,13 +586,19 @@ func (f *Creatives) Unmarshal(depth int, env services.BindingDeps) error {
 type Creative struct {
 	ID          int
 	RedirectUrl string
+	Active      bool
 }
 
 func (c *Creative) Unmarshal(depth int, env services.BindingDeps) error {
+	var deleted_at pq.NullTime
 	row := env.ConfigDB.QueryRow(sqlCreative, c.ID)
-	if err := row.Scan(&c.RedirectUrl); err != nil {
+	if err := row.Scan(&c.RedirectUrl, &deleted_at); err != nil {
 		env.Debug.Println("err", err)
 		return err
+	}
+	c.Active = true
+	if deleted_at.Valid {
+		c.Active = false
 	}
 	return nil
 }
@@ -628,6 +681,8 @@ func (s Purchases) Save(fs [][17]interface{}, quit func(error) bool) {
 				s.Env.Logger.Println("failed, waiting 1 min to try again")
 				time.Sleep(time.Minute)
 			}
+		} else {
+			break
 		}
 	}
 }

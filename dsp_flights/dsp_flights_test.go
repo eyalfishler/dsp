@@ -27,15 +27,15 @@ func TestStageFindClient(t *testing.T) {
 	crid := store.Creatives.Add(&bindings.Creative{})
 	own := store.Users.Add(&bindings.User{Age: 10})
 
-	bfid := store.Folders.Add(&bindings.Folder{Active: true, OwnerID: own, Brand: []int{6}, Creative: []int{crid}, CPC: 350})
-	store.Folders.Add(&bindings.Folder{Active: true, Country: []int{3}, Children: []int{bfid}, CPC: 500})
-	store.Folders.Add(&bindings.Folder{Active: true, Country: []int{4}, CPC: 500})
-	store.Folders.Add(&bindings.Folder{Active: true, Country: []int{3}, Brand: []int{6}, CPC: 50})
-	badfolder := store.Folders.Add(&bindings.Folder{Active: true, OwnerID: own, Country: []int{3}, CPC: 50})
-	store.Folders.Add(&bindings.Folder{Active: true, Country: []int{3}, CPC: 700, Children: []int{badfolder}})
-	randpick := store.Folders.Add(&bindings.Folder{Active: true, OwnerID: own, Country: []int{3}, Brand: []int{6}, CPC: 500, Creative: []int{crid}})
+	bfid := store.Folders.Add(&bindings.Folder{OwnerID: own, Active: true, Brand: []int{6}, Creative: []int{crid}, CPC: 350})
+	store.Folders.Add(&bindings.Folder{OwnerID: own, Active: true, Country: []int{3}, Children: []int{bfid}, CPC: 500})
+	store.Folders.Add(&bindings.Folder{OwnerID: own, Active: true, Country: []int{4}, CPC: 500})
+	store.Folders.Add(&bindings.Folder{OwnerID: own, Active: true, Country: []int{3}, Brand: []int{6}, CPC: 50})
+	badfolder := store.Folders.Add(&bindings.Folder{OwnerID: own, Active: true, Country: []int{3}, CPC: 50})
+	store.Folders.Add(&bindings.Folder{OwnerID: own, Active: true, Country: []int{3}, CPC: 700, Children: []int{badfolder}})
+	randpick := store.Folders.Add(&bindings.Folder{OwnerID: own, Active: true, Country: []int{3}, Brand: []int{6}, CPC: 500, Creative: []int{crid}})
 	_ = randpick
-	store.Folders.Add(&bindings.Folder{Active: true, Country: []int{3}, Brand: []int{6}, CPC: 250})
+	store.Folders.Add(&bindings.Folder{OwnerID: own, Active: true, Country: []int{3}, Brand: []int{6}, CPC: 250})
 
 	flight.Raw.Impressions = []rtb_types.Impression{{}}
 	flight.Dims.CountryID = 3
@@ -69,7 +69,8 @@ func TestWhitelist(t *testing.T) {
 	flight := &DemandFlight{}
 	flight.Runtime.Logic = SimpleLogic{}
 	flight.Runtime.Logger = l
-	f := flight.Runtime.Storage.Folders.ByID(flight.Runtime.Storage.Folders.Add(&bindings.Folder{Active: true, Creative: []int{3}, Network: []int{1, 2}}))
+	store := &flight.Runtime.Storage
+	f := flight.Runtime.Storage.Folders.ByID(store.Folders.Add(&bindings.Folder{OwnerID: store.Users.Add(&bindings.User{}), Active: true, Creative: []int{store.Creatives.Add(&bindings.Creative{Active: true})}, Network: []int{1, 2}}))
 	flight.Dims.NetworkID = 2
 	FindClient(flight)
 	if flight.FolderID != f.ID {
@@ -86,17 +87,17 @@ func TestLoadAll(t *testing.T) {
 	sqlm.ExpectQuery("folders").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(5))
 
 	sqlm.ExpectQuery("folders").WithArgs(5).
-		WillReturnRows(sqlmock.NewRows([]string{"budget", "bid", "creative_id", "owner", "status"}).
-			AddRow(100, 50, 30, 5, "live"))
+		WillReturnRows(sqlmock.NewRows([]string{"budget", "bid", "creative_id", "owner", "status", "d1", "d2"}).
+			AddRow(100, 50, 30, 5, "live", nil, nil))
 	sqlm.ExpectQuery("parent_folder").WithArgs(5).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("7"))
 	sqlm.ExpectQuery("parent_folder").WithArgs(5).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("8"))
 	sqlm.ExpectQuery("dimentions").WithArgs(5).WillReturnRows(sqlmock.NewRows([]string{"a", "b"}).AddRow(1, "Network").AddRow(2, "Network"))
 
 	sqlm.ExpectQuery("creatives").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(5))
 	sqlm.ExpectQuery("creatives").WithArgs(5).
-		WillReturnRows(sqlmock.NewRows([]string{"url"}).AddRow("test.com"))
+		WillReturnRows(sqlmock.NewRows([]string{"url", "d"}).AddRow("test.com", nil))
 
-	sqlm.ExpectQuery("users").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(5))
+	sqlm.ExpectQuery("users").WillReturnRows(sqlmock.NewRows([]string{"id", "d"}).AddRow(5, 0))
 	sqlm.ExpectQuery("ip_histories").WithArgs(5).
 		WillReturnRows(sqlmock.NewRows([]string{"ip"}).AddRow("1.1.1.1"))
 	sqlm.ExpectQuery("user_settings").WithArgs(5).
@@ -119,6 +120,9 @@ func TestLoadAll(t *testing.T) {
 
 	sqlm.ExpectQuery("SELECT (.+) FROM verticals").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "iso_2alpha"}))
+
+	sqlm.ExpectQuery("SELECT (.+) FROM subchannels").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "channel", "label"}))
 
 	sqlm.MatchExpectationsInOrder(false)
 
