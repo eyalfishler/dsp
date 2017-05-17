@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	msgs []string
-	l    sync.RWMutex
-	file *os.File
+	msgs  []string
+	l     sync.RWMutex
+	file  *os.File
+	file2 *os.File
 )
 
 func init() {
@@ -26,11 +27,22 @@ func init() {
 	}()
 	Important("begin important log (server started?)")
 
-	f, e := os.Create("/tmp/important")
-	if e != nil {
-		Important("erorr opening file: " + e.Error())
-	} else {
-		file = f
+	{
+		f, e := os.Create("/tmp/important")
+		if e != nil {
+			Important("erorr opening file: " + e.Error())
+		} else {
+			file = f
+		}
+	}
+
+	{
+		f, e := os.Create("important")
+		if e != nil {
+			Important("erorr opening file: " + e.Error())
+		} else {
+			file2 = f
+		}
 	}
 
 	c := make(chan os.Signal, 2)
@@ -60,6 +72,9 @@ func Shout(m string) {
 	fmt.Fprintln(os.Stderr, "important! stderr: "+m)
 	if file != nil {
 		file.WriteString(m)
+	}
+	if file2 != nil {
+		file2.WriteString(m)
 	}
 }
 
