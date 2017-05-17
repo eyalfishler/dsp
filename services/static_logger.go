@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -68,4 +69,12 @@ func Dump() {
 	fmt.Println(msgs)
 	m := strings.Join(msgs, "\r\n")
 	Shout(m)
+}
+
+func Handle(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	l.RLock()
+	defer l.RUnlock()
+	m := strings.Join(msgs, "\r\n")
+	w.Write([]byte(m))
 }
