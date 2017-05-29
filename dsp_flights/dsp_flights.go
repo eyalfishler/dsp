@@ -81,13 +81,6 @@ func (e *BidEntrypoint) DemandFlight() *DemandFlight {
 	return flight
 }
 
-func (e *BidEntrypoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	request := e.DemandFlight()
-	request.HttpRequest = r
-	request.HttpResponse = w
-	request.Launch()
-}
-
 type BiddingLogic interface {
 	SelectFolderAndCreative(flight *DemandFlight, folders []ElegibleFolder, totalCpc int)
 	CalculateRevshare(flight *DemandFlight) float64
@@ -122,8 +115,6 @@ type DemandFlight struct {
 			Creatives  bindings.Creatives
 			Pseudonyms bindings.Pseudonyms
 			Users      bindings.Users
-
-			Recalls func(json.Marshaler, *int) error
 		}
 		Logger   *log.Logger
 		Debug    *log.Logger
@@ -131,22 +122,13 @@ type DemandFlight struct {
 		Logic    BiddingLogic
 	}
 
-	HttpRequest  *http.Request
-	HttpResponse http.ResponseWriter
-
-	StartTime time.Time
-	RecallID  int
 	FullPrice int
-	WinUrl    string
+	StartTime time.Time
+	Response  rtb_types.Response
+	Error     error
 
-	Response rtb_types.Response
-	Error    error
-
+	DemandResults
 	rtb_types.BidSnapshot
-}
-
-func (df *DemandFlight) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&df.BidSnapshot)
 }
 
 func (df *DemandFlight) String() string {
@@ -165,72 +147,8 @@ func (df *DemandFlight) Launch() {
 			df.Runtime.Logger.Println(string(s))
 		}
 	}()
-	ReadBidRequest(df)
 	FindClient(df)
 	PrepareResponse(df)
-	WriteBidResponse(df)
-}
-
-func ReadBidRequest(flight *DemandFlight) {
-	flight.Runtime.Logger.Println(`starting ReadBidRequest!`)
-	flight.StartTime = time.Now()
-
-	if e := json.NewDecoder(flight.HttpRequest.Body).Decode(&flight.Raw); e != nil {
-		flight.Error = e
-		flight.Runtime.Logger.Println(`failed to decode body`, e.Error())
-	}
-
-	flight.WinUrl = `http://` + flight.HttpRequest.Host + `/win?price=${AUCTION_PRICE}&key=${AUCTION_BID_ID}&imp=${AUCTION_IMP_ID}`
-
-	if dim, found := flight.Runtime.Storage.Pseudonyms.Subnetworks[flight.Raw.Site.SubNetwork]; !found {
-		flight.Runtime.Logger.Printf(`dim not found %s`, flight.Raw.Site.SubNetwork)
-	} else {
-		flight.Dims.SubNetworkID = dim
-	}
-
-	if dim, found := flight.Runtime.Storage.Pseudonyms.Countries[flight.Raw.Device.Geo.Country]; !found {
-		flight.Runtime.Logger.Printf(`dim not found %s`, flight.Raw.Device.Geo.Country)
-	} else {
-		flight.Dims.CountryID = dim
-	}
-
-	if dim, found := flight.Runtime.Storage.Pseudonyms.Networks[flight.Raw.Site.Network]; !found {
-		flight.Runtime.Logger.Printf(`dim not found %s`, flight.Raw.Site.Network)
-	} else {
-		flight.Dims.NetworkID = dim
-	}
-
-	if dim, found := flight.Runtime.Storage.Pseudonyms.DeviceTypes[flight.Raw.Device.DeviceType]; !found {
-		flight.Runtime.Logger.Printf(`dim not found %s`, flight.Raw.Device.DeviceType)
-	} else {
-		flight.Dims.DeviceTypeID = dim
-	}
-
-	if dim, found := flight.Runtime.Storage.Pseudonyms.BrandSlugs[flight.Raw.Site.Brand]; !found {
-		flight.Runtime.Logger.Printf(`dim not found %s`, flight.Raw.Site.Brand)
-	} else {
-		flight.Dims.BrandID = dim
-	}
-
-	if dim, found := flight.Runtime.Storage.Pseudonyms.Verticals[flight.Raw.Site.Vertical]; !found {
-		flight.Runtime.Logger.Printf(`dim not found %s`, flight.Raw.Site.Vertical)
-	} else {
-		flight.Dims.VerticalID = dim
-	}
-
-	if dim, found := flight.Runtime.Storage.Pseudonyms.NetworkTypes[flight.Raw.Site.NetworkType]; !found {
-		flight.Runtime.Logger.Printf(`dim not found %s`, flight.Raw.Site.NetworkType)
-	} else {
-		flight.Dims.NetworkTypeID = dim
-	}
-
-	if dim, found := flight.Runtime.Storage.Pseudonyms.Genders[flight.Raw.User.Gender]; !found {
-		flight.Runtime.Logger.Printf(`dim not found %s`, flight.Raw.User.Gender)
-	} else {
-		flight.Dims.GenderID = dim
-	}
-
-	flight.Runtime.Logger.Println("dimensions decoded:", flight.Dims)
 }
 
 // Fill out the elegible bid
@@ -397,61 +315,14 @@ func PrepareResponse(flight *DemandFlight) {
 	bid.Price = fp * revShare / 100
 	flight.Margin = flight.FullPrice - int(bid.Price)
 
-	net, found := flight.Runtime.Storage.Pseudonyms.NetworkIDS[flight.Dims.NetworkID]
-	if !found {
-		flight.Runtime.Logger.Printf(`net not found %d`, flight.Dims.NetworkID)
-		net = ""
-	}
-	snet, found := flight.Runtime.Storage.Pseudonyms.SubnetworkIDS[flight.Dims.SubNetworkID]
-	if !found {
-		flight.Runtime.Logger.Printf(`snet not found %d`, flight.Dims.SubNetworkID)
-		snet = ""
-	}
-	brand, found := flight.Runtime.Storage.Pseudonyms.BrandIDS[flight.Dims.BrandID]
-	if !found {
-		flight.Runtime.Logger.Printf(`brand not found %d`, flight.Dims.BrandID)
-		brand = ""
-	}
-	brandSlug, found := flight.Runtime.Storage.Pseudonyms.BrandSlugIDS[flight.Dims.BrandID]
-	if !found {
-		flight.Runtime.Logger.Printf(`brandSlug not found %d`, flight.Dims.BrandID)
-		brandSlug = ""
-	}
-	vert, found := flight.Runtime.Storage.Pseudonyms.VerticalIDS[flight.Dims.VerticalID]
-	if !found {
-		flight.Runtime.Logger.Printf(`vert not found %d`, flight.Dims.VerticalID)
-		vert = ""
-	}
-
 	ct := flight.Runtime.Logic.GenerateClickID(flight)
-
-	flight.Runtime.Logger.Println(`saving reference to KVS`)
-
-	if err := flight.Runtime.Storage.Recalls(flight, &flight.RecallID); err != nil {
-		flight.Error = err
-	}
-	bid.ID = strconv.Itoa(flight.RecallID)
-
-	bid.WinUrl = flight.WinUrl
+	bid.ID = int(rand.Int63())
 
 	clickid := flight.Runtime.DefaultB64.Encrypt([]byte(fmt.Sprintf(`%d`, flight.RecallID)))
 
 	cr := flight.Runtime.Storage.Creatives.ByID(flight.CreativeID)
 
 	bid.URL = cr.RedirectUrl
-	bid.URL = strings.Replace(bid.URL, `{realnetwork}`, "", 1)
-	bid.URL = strings.Replace(bid.URL, `{realsubnetwork}`, "", 1)
-	bid.URL = strings.Replace(bid.URL, `{ct}`, ct, 1)
-	bid.URL = strings.Replace(bid.URL, `{clickid}`, fmt.Sprintf(`%s`, clickid), 1)
-
-	bid.URL = strings.Replace(bid.URL, `{network}`, fmt.Sprintf(`%s`, url.QueryEscape(net)), 1)
-	bid.URL = strings.Replace(bid.URL, `{subnetwork}`, fmt.Sprintf(`%s`, url.QueryEscape(snet)), 1)
-	bid.URL = strings.Replace(bid.URL, `{brand}`, fmt.Sprintf(`%s`, url.QueryEscape(brand)), 1)
-	bid.URL = strings.Replace(bid.URL, `{brandurl}`, fmt.Sprintf(`%s`, url.QueryEscape(brandSlug)), 1)
-	bid.URL = strings.Replace(bid.URL, `{vertical}`, fmt.Sprintf(`%s`, url.QueryEscape(vert)), 1)
-
-	bid.URL = strings.Replace(bid.URL, `{cpc}`, fmt.Sprintf(`%f`, fp/100000), 1)
-	bid.URL = strings.Replace(bid.URL, `{placement}`, url.QueryEscape(flight.Raw.Site.Placement), 1)
 
 	if flight.Error != nil {
 		flight.Runtime.Logger.Println(`error occured in FindClient: %s`, flight.Error.Error())
@@ -460,39 +331,6 @@ func PrepareResponse(flight *DemandFlight) {
 
 	flight.Response.SeatBids = append(flight.Response.SeatBids, rtb_types.SeatBid{Bids: []rtb_types.Bid{bid}})
 	flight.Runtime.Logger.Println("finished FindClient", flight.String())
-}
-
-func WriteBidResponse(flight *DemandFlight) {
-	var res []byte
-	if flight.Runtime.TestOnly && len(flight.Response.SeatBids) > 0 && !flight.Raw.Test {
-		flight.Runtime.Logger.Println(`test traffic only and traffic is non-test, removing bid`, flight.Response.SeatBids)
-		flight.Response.SeatBids = nil
-	}
-
-	if len(flight.Response.SeatBids) > 0 {
-		if j, e := json.Marshal(flight.Response); e != nil && flight.Error == nil {
-			flight.Error = e
-			flight.Runtime.Logger.Println(`error encoding`, e.Error())
-		} else {
-			res = j
-		}
-	}
-
-	if flight.Error != nil {
-		flight.Runtime.Logger.Printf("err during request %s, returning 500", flight.Error.Error())
-		flight.HttpResponse.WriteHeader(http.StatusInternalServerError)
-	} else if res != nil {
-		flight.Runtime.Logger.Printf(`looks good and has a response, returning code %d`, http.StatusOK)
-		flight.HttpResponse.Header().Set(`Content-Length`, strconv.Itoa(len(res)))
-		flight.HttpResponse.WriteHeader(http.StatusOK)
-		if n, e := flight.HttpResponse.Write(res); e != nil {
-			flight.Runtime.Logger.Printf(`got an error writing so returning 500! wrote %d bytes: %s`, n, e.Error())
-		}
-	} else {
-		flight.Runtime.Logger.Printf(`looks good but no response, returning code %d`, http.StatusNoContent)
-		flight.HttpResponse.WriteHeader(http.StatusNoContent)
-	}
-	flight.Runtime.Logger.Println(`dsp /bid took`, time.Since(flight.StartTime))
 }
 
 type ElegibleFolder struct {
