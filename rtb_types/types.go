@@ -35,7 +35,6 @@ type Request struct {
 }
 
 type Bid struct {
-	ID     string  `json:"id"`
 	Price  float64 `json:"price"`
 	URL    string  `json:"rurl"`
 	WinUrl string  `json:"nurl"`
@@ -50,12 +49,11 @@ type Response struct {
 }
 
 type WinNotice struct {
-	PaidPrice    int    `json:"paidprice"`
-	OfferedPrice int    `json:"offerprice"`
-	RevPubHome   int    `json:"pubprice"`
-	WinUrl       string `json:"nurl"`
-	Bid          Bid    `json:"bid"`
-	ImpID        int    `json:"impid"`
+	DSP          int
+	PaidPrice    int         `json:"paidprice"`
+	OfferedPrice int         `json:"offerprice"`
+	URL          string      `json:"rurl"`
+	ExtraInfo    interface{} `json:"extra"`
 }
 
 type BidSnapshot struct {

@@ -1,14 +1,11 @@
 package dsp_flights
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/clixxa/dsp/bindings"
 	"github.com/clixxa/dsp/rtb_types"
 	"github.com/clixxa/dsp/services"
 	"log"
-	"net/http"
-	"net/url"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -35,7 +32,6 @@ func (e *BidEntrypoint) Cycle(quit func(error) bool) {
 		df.Runtime.Logger = e.BindingDeps.Logger
 		df.Runtime.Logger.Println("brand new runtime")
 		df.Runtime.Debug = e.BindingDeps.Debug
-		df.Runtime.Storage.Recalls = bindings.Recalls{Env: e.BindingDeps}.Save
 		s := strings.Split(e.BindingDeps.DefaultKey, ":")
 		if len(s) != 2 {
 			if quit(services.ErrParsing{"encryption key", fmt.Errorf(`missing encryption key...`)}) {
@@ -84,7 +80,6 @@ func (e *BidEntrypoint) DemandFlight() *DemandFlight {
 type BiddingLogic interface {
 	SelectFolderAndCreative(flight *DemandFlight, folders []ElegibleFolder, totalCpc int)
 	CalculateRevshare(flight *DemandFlight) float64
-	GenerateClickID(*DemandFlight) string
 }
 
 type SimpleLogic struct {
@@ -105,8 +100,6 @@ func (s SimpleLogic) SelectFolderAndCreative(flight *DemandFlight, folders []Ele
 
 func (s SimpleLogic) CalculateRevshare(flight *DemandFlight) float64 { return 98.0 }
 
-func (s SimpleLogic) GenerateClickID(*DemandFlight) string { return "" }
-
 type DemandFlight struct {
 	Runtime struct {
 		DefaultB64 *bindings.B64
@@ -124,11 +117,10 @@ type DemandFlight struct {
 
 	FullPrice int
 	StartTime time.Time
-	Response  rtb_types.Response
 	Error     error
 
-	DemandResults
 	rtb_types.BidSnapshot
+	rtb_types.WinNotice
 }
 
 func (df *DemandFlight) String() string {
@@ -309,27 +301,19 @@ func PrepareResponse(flight *DemandFlight) {
 	if revShare > 100 {
 		revShare = 100
 	}
-	bid := rtb_types.Bid{}
 	fp := float64(flight.FullPrice)
 	flight.Runtime.Logger.Printf("rev calculated at %f", revShare)
-	bid.Price = fp * revShare / 100
-	flight.Margin = flight.FullPrice - int(bid.Price)
-
-	ct := flight.Runtime.Logic.GenerateClickID(flight)
-	bid.ID = int(rand.Int63())
-
-	clickid := flight.Runtime.DefaultB64.Encrypt([]byte(fmt.Sprintf(`%d`, flight.RecallID)))
-
+	price := fp * revShare / 100
+	flight.ExtraInfo = &flight.BidSnapshot
+	flight.Margin = flight.FullPrice - int(price)
+	flight.OfferedPrice = flight.FullPrice - flight.Margin
 	cr := flight.Runtime.Storage.Creatives.ByID(flight.CreativeID)
-
-	bid.URL = cr.RedirectUrl
+	flight.URL = cr.RedirectUrl
 
 	if flight.Error != nil {
 		flight.Runtime.Logger.Println(`error occured in FindClient: %s`, flight.Error.Error())
 		return
 	}
-
-	flight.Response.SeatBids = append(flight.Response.SeatBids, rtb_types.SeatBid{Bids: []rtb_types.Bid{bid}})
 	flight.Runtime.Logger.Println("finished FindClient", flight.String())
 }
 
