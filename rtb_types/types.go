@@ -48,22 +48,6 @@ type Response struct {
 	SeatBids []SeatBid `json:"seatbid"`
 }
 
-type WinNotice struct {
-	DSP          int
-	PaidPrice    int         `json:"paidprice"`
-	OfferedPrice int         `json:"offerprice"`
-	URL          string      `json:"rurl"`
-	ExtraInfo    interface{} `json:"extra"`
-}
-
-type BidSnapshot struct {
-	FolderID   int        `json:"folder"`
-	CreativeID int        `json:"creative"`
-	Margin     int        `json:"margin"`
-	Dims       Dimensions `json:"dims"`
-	Raw        Request    `json:"raw"`
-}
-
 type Dimensions struct {
 	VerticalID    int
 	BrandID       int
