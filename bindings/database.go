@@ -655,7 +655,7 @@ type Purchases struct {
 	SkipWork bool
 }
 
-func (s Purchases) Save(fs [][17]interface{}, quit func(error) bool) {
+func (s Purchases) Save(fs [][5]interface{}, quit func(error) bool) {
 	q := []string{}
 	args := []interface{}{}
 
@@ -687,7 +687,7 @@ func (s Purchases) Save(fs [][17]interface{}, quit func(error) bool) {
 	}
 }
 
-const sqlInsertPurchases = `INSERT INTO purchases (sale_id, billable, rev_tx, rev_tx_home, rev_ssp, rev_ssp_home, ssp_id, folder_id, creative_id, country_id, vertical_id, brand_id, network_id, subnetwork_id, networktype_id, gender_id, devicetype_id) VALUES `
+const sqlInsertPurchases = `INSERT INTO purchases (sale_id, rev_tx, rev_tx_home, folder_id, creative_id) VALUES `
 
 const sqlCreatePurchases = `CREATE TABLE purchases (
 	created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
