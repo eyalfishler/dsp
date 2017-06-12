@@ -26,7 +26,7 @@ const sqlUserIPs = `SELECT ip FROM ip_histories WHERE user_id = ?`
 const sqlUser = `SELECT setting_id, value FROM user_settings WHERE user_id = ?`
 const sqlDimention = `SELECT dimentions_id, dimentions_type FROM dimentions WHERE folder_id = ?`
 const sqlDimension = `SELECT dimensions_id, dimensions_type FROM dimensions WHERE folder_id = ?`
-const sqlFolder = `SELECT budget, bid, creative_id, user_id, folders.status, folders.deleted_at, creative_folder.deleted_at FROM folders LEFT JOIN creative_folder ON folder_id = id WHERE id = ?`
+const sqlFolder = `SELECT budget, bid, creative_id, user_id, folders.status, folders.deleted_at, creative_folder.status, creative_folder.deleted_at FROM folders LEFT JOIN creative_folder ON folder_id = id WHERE id = ?`
 const sqlCreative = `SELECT destination_url, deleted_at FROM creatives cr WHERE cr.id = ?`
 const sqlCountries = `SELECT id, iso_2alpha FROM countries`
 const sqlNetworks = `SELECT id, pseudonym FROM networks`
@@ -351,6 +351,12 @@ func (d *Dimension) Transfer(f *Folder) error {
 	case `DeviceType`:
 		f.DeviceType = append(f.DeviceType, d.Value)
 		return nil
+	case `Angle`:
+		f.Angle = append(f.Angle, d.Value)
+		return nil
+	case `Interest`:
+		f.Interest = append(f.Interest, d.Value)
+		return nil
 	default:
 		return fmt.Errorf(`unknown type: %s`, d.Type)
 	}
@@ -373,6 +379,9 @@ type Folder struct {
 	NetworkType []int
 	Gender      []int
 	DeviceType  []int
+	Angle       []int
+	Interest    []int
+	Placement   []string
 
 	Active bool
 
@@ -385,9 +394,9 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 	row := env.ConfigDB.QueryRow(sqlFolder, f.ID)
 
 	var budget, bid sql.NullInt64
-	var live sql.NullString
+	var live, creativeLive sql.NullString
 	var folder_deleted_at, creative_deleted_at pq.NullTime
-	if err := row.Scan(&budget, &bid, &creative_id, &f.OwnerID, &live, &folder_deleted_at, &creative_deleted_at); err != nil {
+	if err := row.Scan(&budget, &bid, &creative_id, &f.OwnerID, &live, &folder_deleted_at, &creativeLive, &creative_deleted_at); err != nil {
 		if f.mode == 0 {
 			f.mode = 1
 			env.Debug.Println("users didn't work, trying user")
@@ -400,6 +409,11 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 	if live.Valid {
 		if live.String == "live" {
 			f.Active = true
+		}
+	}
+	if creativeLive.Valid {
+		if creativeLive.String != "live" {
+			f.Active = false
 		}
 	}
 	if folder_deleted_at.Valid {

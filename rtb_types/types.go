@@ -19,6 +19,7 @@ type Request struct {
 		Network     string `json:"network"`
 		SubNetwork  string `json:"subnetwork"`
 		NetworkType string `json:"networktype"`
+		Angle       string `json:"angle"`
 	} `json:"site"`
 	Device struct {
 		UserAgent  string `json:"ua"`
@@ -31,6 +32,7 @@ type Request struct {
 		Gender     string `json:"gender"`
 		RemoteAddr string `json:"remoteaddr"`
 		PubGuid    string `json:"guid"`
+		Interest   string `json:"interest"`
 	} `json:"user"`
 }
 
@@ -57,4 +59,6 @@ type Dimensions struct {
 	DeviceTypeID  int
 	CountryID     int
 	GenderID      int
+	InterestID    int
+	AngleID       int
 }
