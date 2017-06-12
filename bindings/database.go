@@ -475,7 +475,7 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 		if err != nil {
 			return err
 		}
-		var pattern int
+		var pattern string
 		for rows.Next() {
 			if err := rows.Scan(&pattern); err != nil {
 				env.Debug.Println("err", err)
