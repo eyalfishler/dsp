@@ -26,7 +26,7 @@ const sqlUserIPs = `SELECT ip FROM ip_histories WHERE user_id = ?`
 const sqlUser = `SELECT setting_id, value FROM user_settings WHERE user_id = ?`
 const sqlDimention = `SELECT dimentions_id, dimentions_type FROM dimentions WHERE folder_id = ?`
 const sqlDimension = `SELECT dimensions_id, dimensions_type FROM dimensions WHERE folder_id = ?`
-const sqlFolder = `SELECT budget, bid, creative_id, user_id, folders.status, folders.deleted_at, creative_folder.status, creative_folder.deleted_at FROM folders LEFT JOIN creative_folder ON folder_id = id WHERE id = ?`
+const sqlFolder = `SELECT budget, bid, creative_id, user_id, folders.status, folders.deleted_at, creative_folder.status, creative_folder.deleted_at, folders.placement_list_type FROM folders LEFT JOIN creative_folder ON folder_id = id WHERE id = ?`
 const sqlFolderPlacements = `SELECT pattern FROM folder_placements WHERE folder_id = ?`
 const sqlCreative = `SELECT destination_url, deleted_at FROM creatives cr WHERE cr.id = ?`
 const sqlCountries = `SELECT id, iso_2alpha FROM countries`
@@ -382,17 +382,18 @@ type Folder struct {
 	Budget   int
 	OwnerID  int
 
-	Vertical    []int
-	Country     []int
-	Brand       []int
-	Network     []int
-	SubNetwork  []int
-	NetworkType []int
-	Gender      []int
-	DeviceType  []int
-	Angle       []int
-	Interest    []int
-	Placement   []string
+	Vertical            []int
+	Country             []int
+	Brand               []int
+	Network             []int
+	SubNetwork          []int
+	NetworkType         []int
+	Gender              []int
+	DeviceType          []int
+	Angle               []int
+	Interest            []int
+	Placement           []string
+	PlacementFilterType string
 
 	Active bool
 
@@ -405,9 +406,9 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 	row := env.ConfigDB.QueryRow(sqlFolder, f.ID)
 
 	var budget, bid sql.NullInt64
-	var live, creativeLive sql.NullString
+	var live, creativeLive, placementBL sql.NullString
 	var folder_deleted_at, creative_deleted_at pq.NullTime
-	if err := row.Scan(&budget, &bid, &creative_id, &f.OwnerID, &live, &folder_deleted_at, &creativeLive, &creative_deleted_at); err != nil {
+	if err := row.Scan(&budget, &bid, &creative_id, &f.OwnerID, &live, &folder_deleted_at, &creativeLive, &creative_deleted_at, &placementBL); err != nil {
 		if f.mode == 0 {
 			f.mode = 1
 			env.Debug.Println("users didn't work, trying user")
@@ -471,6 +472,9 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 	}
 
 	{
+		if placementBL.Valid {
+			f.PlacementFilterType = placementBL.String
+		}
 		rows, err := env.ConfigDB.Query(sqlFolderPlacements, f.ID)
 		if err != nil {
 			return err
