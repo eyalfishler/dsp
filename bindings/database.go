@@ -27,6 +27,7 @@ const sqlUser = `SELECT setting_id, value FROM user_settings WHERE user_id = ?`
 const sqlDimention = `SELECT dimentions_id, dimentions_type FROM dimentions WHERE folder_id = ?`
 const sqlDimension = `SELECT dimensions_id, dimensions_type FROM dimensions WHERE folder_id = ?`
 const sqlFolder = `SELECT budget, bid, creative_id, user_id, folders.status, folders.deleted_at, creative_folder.status, creative_folder.deleted_at FROM folders LEFT JOIN creative_folder ON folder_id = id WHERE id = ?`
+const sqlFolderPlacements = `SELECT pattern FROM folder_placements WHERE folder_id = ?`
 const sqlCreative = `SELECT destination_url, deleted_at FROM creatives cr WHERE cr.id = ?`
 const sqlCountries = `SELECT id, iso_2alpha FROM countries`
 const sqlNetworks = `SELECT id, pseudonym FROM networks`
@@ -466,6 +467,21 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 				return err
 			}
 			f.Children = append(f.Children, id)
+		}
+	}
+
+	{
+		rows, err := env.ConfigDB.Query(sqlFolderPlacements, f.ID)
+		if err != nil {
+			return err
+		}
+		var pattern int
+		for rows.Next() {
+			if err := rows.Scan(&pattern); err != nil {
+				env.Debug.Println("err", err)
+				return err
+			}
+			f.Placement = append(f.Placement, pattern)
 		}
 	}
 
