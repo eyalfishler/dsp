@@ -39,6 +39,8 @@ const sqlNetworkTypes = `SELECT id, label FROM network_types`
 const sqlSubchannels = `SELECT id, label, channel_id FROM subchannels`
 const sqlSubnetworkToNetwork = `SELECT id, network_id FROM subnetworks`
 const sqlNetworkToNetworkType = `SELECT network_id, network_type_id FROM network_network_type`
+const sqlAngles = `SELECT id, label FROM angles`
+const sqlInterests = `SELECT id, label FROM interests`
 
 type Subchannel struct {
 	ChannelID int
@@ -73,6 +75,11 @@ type Pseudonyms struct {
 	Genders       map[string]int
 	GenderIDs     map[int]string
 
+	Angles      map[string]int
+	AngleIDs    map[int]string
+	Interests   map[string]int
+	InterestIDs map[int]string
+
 	Subchannels map[Subchannel]int
 }
 
@@ -85,6 +92,9 @@ func (c *Pseudonyms) Unmarshal(depth int, env services.BindingDeps) error {
 	c.Namespace(env, sqlBrandSlugs, &c.BrandSlugs, &c.BrandSlugIDS)
 	c.Namespace(env, sqlVerticals, &c.Verticals, &c.VerticalIDS)
 	c.Namespace(env, sqlNetworkTypes, &c.NetworkTypes, &c.NetworkTypeIDS)
+
+	c.Namespace(env, sqlAngles, &c.Angles, &c.AngleIDs)
+	c.Namespace(env, sqlInterests, &c.Interests, &c.InterestIDs)
 
 	c.SubchannelLoad(env, sqlSubchannels, &c.Subchannels)
 
