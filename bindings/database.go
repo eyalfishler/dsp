@@ -364,7 +364,7 @@ func (d *Dimension) Transfer(f *Folder) error {
 	case `Angle`:
 		f.Angle = append(f.Angle, d.Value)
 		return nil
-	case `Interest`:
+	case `CurrentInterest`:
 		f.Interest = append(f.Interest, d.Value)
 		return nil
 	default:
