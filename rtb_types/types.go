@@ -20,6 +20,7 @@ type Request struct {
 		SubNetwork  string `json:"subnetwork"`
 		NetworkType string `json:"networktype"`
 		Angle       string `json:"angle"`
+		Depth       int    `json:"depth"`
 	} `json:"site"`
 	Device struct {
 		UserAgent  string `json:"ua"`
@@ -29,10 +30,10 @@ type Request struct {
 		} `json:"geo"`
 	} `json:"device"`
 	User struct {
-		Gender     string `json:"gender"`
-		RemoteAddr string `json:"remoteaddr"`
-		PubGuid    string `json:"guid"`
-		Interest   string `json:"interest"`
+		Gender       string `json:"gender"`
+		RemoteAddr   string `json:"remoteaddr"`
+		MostUniqueID string `json:"muid"`
+		Interest     string `json:"interest"`
 	} `json:"user"`
 }
 
