@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"gopkg.in/redis.v5"
 	"log"
 	"os"
 	"strings"
@@ -42,6 +43,7 @@ type BindingDeps struct {
 	Logger     *log.Logger
 	DefaultKey string
 	Redis      *RandomCache
+	KVS        *redis.Client
 }
 
 type ProductionDepsService struct {
@@ -107,9 +109,12 @@ func (p *ProductionDepsService) Cycle(quit func(error) bool) {
 
 	if str := p.RedisDSN(); str != p.RedisStr {
 		p.RedisStr = str
+
 		sh := &ShardSystem{Fallback: p.BindingDeps.Redis}
 		rc2 := &RandomCache{sh}
 		for _, url := range strings.Split(str, ",") {
+			p.BindingDeps.KVS = redis.NewClient(&redis.Options{Addr: url})
+
 			if r, err := p.RedisFactory(url); quit(ErrDatabaseMissing{"redis", err}) {
 				return
 			} else {
