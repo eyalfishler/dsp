@@ -13,14 +13,15 @@ type Request struct {
 	Test        bool         `json:"test"`
 	Impressions []Impression `json:"imp"`
 	Site        struct {
-		Placement   string `json:"placement"`
-		Vertical    string `json:"vertical"`
-		Brand       string `json:"brand"`
-		Network     string `json:"network"`
-		SubNetwork  string `json:"subnetwork"`
-		NetworkType string `json:"networktype"`
-		Angle       string `json:"angle"`
-		Depth       int    `json:"depth"`
+		Placement   string   `json:"placement"`
+		Vertical    string   `json:"vertical"`
+		Brand       string   `json:"brand"`
+		Network     string   `json:"network"`
+		SubNetwork  string   `json:"subnetwork"`
+		NetworkType string   `json:"networktype"`
+		Angle       string   `json:"angle"`
+		Depth       int      `json:"depth"`
+		Keywords    []string `json:"keywords"`
 	} `json:"site"`
 	Device struct {
 		UserAgent  string `json:"ua"`
