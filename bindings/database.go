@@ -40,8 +40,8 @@ const sqlNetworkTypes = `SELECT id, label FROM network_types`
 const sqlSubchannels = `SELECT id, label, channel_id FROM subchannels`
 const sqlSubnetworkToNetwork = `SELECT id, network_id FROM subnetworks`
 const sqlNetworkToNetworkType = `SELECT network_id, network_type_id FROM network_network_type`
-const sqlAngles = `SELECT id, label FROM angles`
-const sqlInterests = `SELECT id, label FROM interests`
+const sqlAngles = `SELECT id, name FROM angles`
+const sqlInterests = `SELECT id, name FROM interests`
 
 type Subchannel struct {
 	ChannelID int
@@ -146,6 +146,7 @@ func (c *Pseudonyms) Namespace(env services.BindingDeps, sql string, dest *map[s
 			return err
 		}
 		(*dest)[realName] = id
+		(*dest)[strings.ToLower(realName)] = id
 		(*dest2)[id] = realName
 	}
 	return nil
