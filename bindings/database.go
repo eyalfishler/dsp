@@ -491,7 +491,7 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 				env.Debug.Println("err", err)
 				return err
 			}
-			f.Keywords = append(f.Keywords, pattern)
+			f.Placement = append(f.Placement, pattern)
 		}
 	}
 
@@ -506,7 +506,7 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 				env.Debug.Println("err", err)
 				return err
 			}
-			f.Placement = append(f.Placement, pattern)
+			f.Keywords = append(f.Keywords, pattern)
 		}
 	}
 
