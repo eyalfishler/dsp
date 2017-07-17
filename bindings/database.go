@@ -224,13 +224,14 @@ func (f *Users) Unmarshal(depth int, env services.BindingDeps) error {
 }
 
 type User struct {
-	ID      int
-	IPs     []string
-	Age     int
-	Key     string
-	B64     *B64
-	Status  int
-	AuthKey string
+	ID           int
+	IPs          []string
+	Age          int
+	Key          string
+	B64          *B64
+	Status       int
+	AuthKey      string
+	PublisherURL string
 }
 
 func (u *User) Unmarshal(depth int, env services.BindingDeps) error {
@@ -268,6 +269,8 @@ func (u *User) Unmarshal(depth int, env services.BindingDeps) error {
 				u.Key = value
 			case 7:
 				u.AuthKey = value
+			case 8:
+				u.PublisherURL = value
 			}
 		}
 	}
