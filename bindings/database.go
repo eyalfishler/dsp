@@ -184,16 +184,26 @@ func (f *Users) ByID(id int) *User {
 	return nil
 }
 
-func (c *Users) Add(ch *User) int {
+func (f *Users) Add(ch *User) int {
 	m := 1
-	for _, och := range *c {
+	for _, och := range *f {
 		if och.ID >= m {
 			m = och.ID + 1
 		}
 	}
 	ch.ID = m
-	*c = append(*c, ch)
+	*f = append(*f, ch)
 	return ch.ID
+}
+
+func (f *Users) GetDeals(env services.BindingDeps) error {
+	for _, usr := range *f {
+		err := usr.GetDeals(env)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (f *Users) Unmarshal(depth int, env services.BindingDeps) error {
@@ -232,6 +242,44 @@ type User struct {
 	Status       int
 	AuthKey      string
 	PublisherURL string
+	Deals        Deals
+}
+
+type Deal struct {
+	ID            int
+	FixedRevShare float64
+	FixedCPC      int
+	Priority      int
+}
+
+type Deals []*Deal
+
+func (dls *Deals) ByID(id int) *Deal {
+	for _, d := range *dls {
+		if d.ID == id {
+			return d
+		}
+	}
+	return nil
+}
+
+const getUserDealSql = `SELECT deals.id, fixed_revshare, fixed_cpc, priority FROM deals LEFT JOIN deal_user AS du ON du.deal_id = deals.id WHERE du.user_id = $1`
+
+func (u *User) GetDeals(env services.BindingDeps) error {
+	rows, err := env.ConfigDB.Query(getUserDealSql, u.ID)
+	if err != nil {
+		env.Debug.Println("err", err)
+		return err
+	}
+	var deal Deal
+	for rows.Next() {
+		if err := rows.Scan(&deal); err != nil {
+			env.Debug.Println("err", err)
+			return err
+		}
+		u.Deals = append(u.Deals, &deal)
+	}
+	return nil
 }
 
 func (u *User) Unmarshal(depth int, env services.BindingDeps) error {

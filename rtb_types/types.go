@@ -3,9 +3,19 @@ package rtb_types
 type Impression struct {
 	ID       string `json:"id"`
 	BidFloor int    `json:"bidfloor"`
+	PMP      PMP    `json:"pmp"`
 	Redirect struct {
 		BannedAttributes []string `json:"battr"`
 	} `json:"redirect"`
+}
+type PMP struct {
+	ID    int    `json:"private_auction"`
+	Deals []Deal `json:"deals"`
+}
+
+type Deal struct {
+	ID       int `json:"id"`
+	BidFloor int `json:"bidfloor"`
 }
 
 type Request struct {
