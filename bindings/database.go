@@ -246,7 +246,7 @@ type User struct {
 }
 
 type Deal struct {
-	ID            int
+	ID            string
 	FixedRevShare float64
 	FixedCPC      int
 	Priority      int
@@ -254,7 +254,7 @@ type Deal struct {
 
 type Deals []*Deal
 
-func (dls *Deals) ByID(id int) *Deal {
+func (dls *Deals) ByID(id string) *Deal {
 	for _, d := range *dls {
 		if d.ID == id {
 			return d
