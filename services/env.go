@@ -51,7 +51,7 @@ type ProductionDepsService struct {
 	RedisStr     string
 	Consul       *ConsulConfigs
 	Messages     chan string
-	RedisFactory func(string) (CacheSystem, error)
+	RedisFactory func(*redis.Client) (CacheSystem, error)
 }
 
 func (p *ProductionDepsService) ConfigDSN() *DSN {
@@ -77,9 +77,6 @@ func (p *ProductionDepsService) StatsDSN() *DSN {
 }
 
 func (p *ProductionDepsService) RedisDSN() string {
-	if p.Consul.RedisUrls != "" {
-		return p.Consul.RedisUrls
-	}
 	return os.Getenv("TRECALLURL")
 }
 
@@ -113,9 +110,9 @@ func (p *ProductionDepsService) Cycle(quit func(error) bool) {
 		sh := &ShardSystem{Fallback: p.BindingDeps.Redis}
 		rc2 := &RandomCache{sh}
 		for _, url := range strings.Split(str, ",") {
-			p.BindingDeps.KVS = redis.NewClient(&redis.Options{Addr: url})
+			p.BindingDeps.KVS = redis.NewFailoverClient(&redis.FailoverOptions{SentinelAddrs: []string{url}})
 
-			if r, err := p.RedisFactory(url); quit(ErrDatabaseMissing{"redis", err}) {
+			if r, err := p.RedisFactory(p.BindingDeps.KVS); quit(ErrDatabaseMissing{"redis", err}) {
 				return
 			} else {
 				sh.Children = append(sh.Children, r)

@@ -44,9 +44,8 @@ func (r *RecallRedis) String() string {
 	return fmt.Sprintf(`redis client called %d times since last dump`, v)
 }
 
-func NewRedis(conn string) (*RecallRedis, error) {
-	red := &redis.Options{Addr: conn}
-	r := &RecallRedis{Client: redis.NewClient(red)}
+func NewRedis(conn *redis.Client) (*RecallRedis, error) {
+	r := &RecallRedis{Client: conn}
 	if err := r.Ping().Err(); err != nil {
 		services.Important(err.Error())
 		return nil, err
@@ -54,6 +53,6 @@ func NewRedis(conn string) (*RecallRedis, error) {
 	return r, nil
 }
 
-func NewRedisCache(conn string) (services.CacheSystem, error) {
+func NewRedisCache(conn *redis.Client) (services.CacheSystem, error) {
 	return NewRedis(conn)
 }
