@@ -104,13 +104,15 @@ func (p *ProductionDepsService) Cycle(quit func(error) bool) {
 		}(p.BindingDeps.Redis)
 	}
 
+	fmt.Println("cycling PDS")
 	if str := p.RedisDSN(); str != p.RedisStr {
 		p.RedisStr = str
 
 		sh := &ShardSystem{Fallback: p.BindingDeps.Redis}
 		rc2 := &RandomCache{sh}
 		for _, url := range strings.Split(str, ",") {
-			p.BindingDeps.KVS = redis.NewFailoverClient(&redis.FailoverOptions{SentinelAddrs: []string{url}})
+			fmt.Println("redis.connect[" + url + "]")
+			p.BindingDeps.KVS = redis.NewFailoverClient(&redis.FailoverOptions{MasterName: "mymaster", SentinelAddrs: []string{url}})
 
 			if r, err := p.RedisFactory(p.BindingDeps.KVS); quit(ErrDatabaseMissing{"redis", err}) {
 				return
@@ -118,6 +120,7 @@ func (p *ProductionDepsService) Cycle(quit func(error) bool) {
 				sh.Children = append(sh.Children, r)
 			}
 		}
+		fmt.Printf("redis.finally[]")
 		p.BindingDeps.Redis = rc2
 	}
 
