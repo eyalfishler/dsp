@@ -196,6 +196,12 @@ func (f *Users) Add(ch *User) int {
 	return ch.ID
 }
 
+func (f *Users) Copy() Users {
+	copies := Users(make([]*User, len(*f)))
+	copy(copies, *f)
+	return copies
+}
+
 func (f *Users) GetDeals(env services.BindingDeps) error {
 	for _, usr := range *f {
 		err := usr.GetDeals(env)
@@ -359,11 +365,11 @@ type Dimensions struct {
 }
 
 func (d *Dimensions) Unmarshal(depth int, env services.BindingDeps) error {
-	sql := sqlDimension
+	sql_query := sqlDimension
 	if d.mode == 1 {
-		sql = sqlDimention
+		sql_query = sqlDimention
 	}
-	rows, err := env.ConfigDB.Query(sql, d.FolderID)
+	rows, err := env.ConfigDB.Query(sql_query, d.FolderID)
 	if err != nil {
 		if d.mode == 0 {
 			d.mode = 1
@@ -612,19 +618,25 @@ func (f *Folders) ByID(id int) *Folder {
 	return nil
 }
 
-func (c *Folders) Add(ch *Folder) int {
+func (f *Folders) Add(ch *Folder) int {
 	m := 1
-	for _, och := range *c {
+	for _, och := range *f {
 		if och.ID >= m {
 			m = och.ID + 1
 		}
 	}
 	ch.ID = m
-	*c = append(*c, ch)
+	*f = append(*f, ch)
 	for _, child := range ch.Children {
-		c.ByID(child).ParentID = &ch.ID
+		f.ByID(child).ParentID = &ch.ID
 	}
 	return ch.ID
+}
+
+func (f *Folders) Copy() Folders {
+	copies := Folders(make([]*Folder, len(*f)))
+	copy(copies, *f)
+	return copies
 }
 
 func (f *Folders) Unmarshal(depth int, env services.BindingDeps) error {
@@ -659,8 +671,8 @@ func (f *Folders) String() string {
 
 type Creatives []*Creative
 
-func (f *Creatives) ByID(id int) *Creative {
-	for _, u := range *f {
+func (c *Creatives) ByID(id int) *Creative {
+	for _, u := range *c {
 		if u.ID == id {
 			return u
 		}
@@ -680,22 +692,28 @@ func (c *Creatives) Add(ch *Creative) int {
 	return ch.ID
 }
 
-func (f *Creatives) Unmarshal(depth int, env services.BindingDeps) error {
+func (c *Creatives) Copy() Creatives {
+	copies := Creatives(make([]*Creative, len(*c)))
+	copy(copies, *c)
+	return copies
+}
+
+func (c *Creatives) Unmarshal(depth int, env services.BindingDeps) error {
 	if ids, err := AllIDs("creatives", env); err != nil {
 		return err
 	} else {
-		*f = (*f)[:0]
+		*c = (*c)[:0]
 		for _, id := range ids {
 			ch := &Creative{ID: id}
 			if err := ch.Unmarshal(depth+1, env); err != nil {
 				env.Debug.Println("err", err)
 				return err
 			}
-			*f = append(*f, ch)
+			*c = append(*c, ch)
 		}
 	}
 
-	env.Debug.Printf("LOADED %s %T %s", wide(depth), f, tojson(f))
+	env.Debug.Printf("LOADED %s %T %s", wide(depth), c, tojson(c))
 	return nil
 }
 
