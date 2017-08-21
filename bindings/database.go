@@ -458,7 +458,8 @@ type Folder struct {
 	Placement           []string
 	PlacementFilterType string
 
-	Active bool
+	Active             bool
+	MaxImpressionCount int
 
 	mode int
 }
@@ -598,6 +599,7 @@ func (f *Folder) Unmarshal(depth int, env services.BindingDeps) error {
 		}
 	}
 
+	f.MaxImpressionCount = 1
 	env.Debug.Printf("LOADED %s %T %s", wide(depth), f, tojson(f))
 	return nil
 }
