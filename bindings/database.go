@@ -607,6 +607,12 @@ func (f *Folder) String() string {
 	return fmt.Sprintf(`folder %d (child %d, cpc %d, #cr %d, dims %s)`, f.ID, len(f.Children), f.CPC, len(f.Creative), dims)
 }
 
+func (f *Folder) Copy() *Folder {
+	f2 := new(Folder)
+	*f2 = *f
+	return f2
+}
+
 type Folders []*Folder
 
 func (f *Folders) ByID(id int) *Folder {
@@ -616,6 +622,15 @@ func (f *Folders) ByID(id int) *Folder {
 		}
 	}
 	return nil
+}
+
+func (f *Folders) GetPositionByID(id int) int {
+	for pos, u := range *f {
+		if u.ID == id {
+			return pos
+		}
+	}
+	return -1
 }
 
 func (f *Folders) Add(ch *Folder) int {
