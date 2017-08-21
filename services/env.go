@@ -113,7 +113,10 @@ func (p *ProductionDepsService) Cycle(quit func(error) bool) {
 		for _, url := range strings.Split(str, ",") {
 			fmt.Println("redis.connect[" + url + "]")
 			p.BindingDeps.KVS = redis.NewFailoverClient(&redis.FailoverOptions{MasterName: "mymaster", SentinelAddrs: []string{url}})
-
+			if p.BindingDeps.KVS.Ping().Err() != nil {
+				fmt.Println("redis failover failed, trying normal client connection")
+				p.BindingDeps.KVS = redis.NewClient(&redis.Options{Addr: url})
+			}
 			if r, err := p.RedisFactory(p.BindingDeps.KVS); quit(ErrDatabaseMissing{"redis", err}) {
 				return
 			} else {
