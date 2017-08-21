@@ -1,10 +1,11 @@
 package rtb_types
 
 type Impression struct {
-	ID       string `json:"id"`
-	BidFloor int    `json:"bidfloor"`
-	PMP      PMP    `json:"pmp"`
-	Redirect struct {
+	ID        string `json:"id"`
+	HourCount int    `json:"hourcount"`
+	BidFloor  int    `json:"bidfloor"`
+	PMP       PMP    `json:"pmp"`
+	Redirect  struct {
 		BannedAttributes []string `json:"battr"`
 	} `json:"redirect"`
 }
@@ -55,6 +56,7 @@ type Request struct {
 		Gender       string `json:"gender"`
 		RemoteAddr   string `json:"remoteaddr"`
 		MostUniqueID string `json:"muid"`
+		SessionDepth int    `json:"sessiondepth"`
 		Interest     string `json:"interest"`
 	} `json:"user"`
 }
